@@ -1,0 +1,29 @@
+{
+  "name": "synapse-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Synapse AI — AI-Powered Customer Support Agent (RAG + multi-provider agent + immersive 3D UI)",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,client -c cyan,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm run dev --workspace client",
+    "migrate": "npm run migrate --workspace server",
+    "seed": "npm run seed --workspace server",
+    "verify": "npm run verify --workspace server",
+    "build": "npm run build --workspace client",
+    "setup": "npm install && npm run migrate && npm run seed"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "overrides": {
+    "shell-quote": "^1.8.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,222 @@
+@import './tokens.css';
+
+/* Fonts */
+@import '@fontsource/sora/400.css';
+@import '@fontsource/sora/600.css';
+@import '@fontsource/sora/700.css';
+@import '@fontsource/manrope/400.css';
+@import '@fontsource/manrope/500.css';
+@import '@fontsource/manrope/600.css';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+  ::selection {
+    background: var(--glow);
+    color: var(--ink);
+  }
+  /* Custom thin scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(34, 211, 238, 0.35);
+  }
+}
+
+@layer components {
+  /* Reusable glass surface */
+  .glass {
+    background: var(--surface);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow-glass);
+  }
+  .glow-text {
+    text-shadow: 0 0 24px var(--glow);
+  }
+
+  /* ── Floating 3D hero panels (rendered via drei <Html transform>) ── */
+  .hero-panel {
+    width: 200px;
+    padding: 16px 18px;
+    border-radius: 16px;
+    background: rgba(8, 14, 26, 0.72);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(34, 211, 238, 0.22);
+    box-shadow: 0 0 30px rgba(34, 211, 238, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    color: var(--ink);
+    font-family: var(--font-body);
+    user-select: none;
+  }
+  .hero-panel-wide {
+    width: 240px;
+  }
+  .hero-panel-label {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--cyan);
+    margin-bottom: 12px;
+  }
+  .hero-panel-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 14px;
+    padding: 5px 0;
+    color: #cbd5e1;
+  }
+  .hero-panel-row .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+  }
+  .hero-panel-foot {
+    margin-top: 12px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .hero-chat-user {
+    font-size: 14px;
+    color: #e2e8f0;
+    margin-bottom: 10px;
+  }
+  .hero-chat-ai {
+    font-size: 13px;
+    color: #cbd5e1;
+    background: rgba(34, 211, 238, 0.08);
+    border-left: 2px solid var(--cyan);
+    padding: 8px 10px;
+    border-radius: 8px;
+    line-height: 1.4;
+  }
+  .hero-chat-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    font-size: 11px;
+    font-family: var(--font-mono);
+  }
+  .hero-chat-meta .conf {
+    color: var(--cyan);
+  }
+  .hero-chat-meta .resolved {
+    color: var(--emerald);
+  }
+  .hero-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #e2e8f0;
+  }
+  .hero-flow .arrow {
+    color: var(--cyan);
+  }
+  .hero-flow .capsule {
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(34, 211, 238, 0.12);
+    border: 1px solid rgba(34, 211, 238, 0.3);
+    font-size: 11px;
+    color: var(--cyan);
+  }
+
+  /* ── Markdown inside chat bubbles ── */
+  .prose-chat p {
+    margin: 0 0 0.5em;
+  }
+  .prose-chat p:last-child {
+    margin-bottom: 0;
+  }
+  .prose-chat ul,
+  .prose-chat ol {
+    margin: 0.4em 0;
+    padding-left: 1.2em;
+  }
+  .prose-chat li {
+    margin: 0.2em 0;
+  }
+  .prose-chat code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    background: rgba(34, 211, 238, 0.1);
+    padding: 0.1em 0.35em;
+    border-radius: 5px;
+    color: var(--cyan);
+  }
+  .prose-chat strong {
+    color: #fff;
+    font-weight: 600;
+  }
+  .prose-chat a {
+    color: var(--cyan);
+    text-decoration: underline;
+  }
+
+  /* ── Animated mesh-gradient backdrop (cinematic ambient light) ── */
+  .mesh-bg {
+    background:
+      radial-gradient(40% 50% at 75% 30%, rgba(34, 211, 238, 0.16), transparent 70%),
+      radial-gradient(45% 55% at 20% 70%, rgba(59, 130, 246, 0.16), transparent 70%),
+      radial-gradient(35% 45% at 60% 85%, rgba(16, 185, 129, 0.08), transparent 70%);
+    filter: blur(20px);
+    animation: meshDrift 22s ease-in-out infinite alternate;
+  }
+  @keyframes meshDrift {
+    0% {
+      transform: translate3d(-2%, -1%, 0) scale(1.05);
+    }
+    100% {
+      transform: translate3d(3%, 2%, 0) scale(1.15);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

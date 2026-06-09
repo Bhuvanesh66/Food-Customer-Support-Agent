@@ -1,0 +1,54 @@
+[
+  {
+    "orderId": "FA-1001",
+    "customer": "alex",
+    "restaurant": "Tokyo Ramen House",
+    "items": ["Tonkotsu Ramen", "Gyoza (6 pc)"],
+    "total": "$24.50",
+    "status": "on_the_way",
+    "placedAt": "2026-06-18T18:42:00",
+    "etaMinutes": 8,
+    "courier": "Priya"
+  },
+  {
+    "orderId": "FA-1002",
+    "customer": "sam",
+    "restaurant": "Green Bowl Salads",
+    "items": ["Cobb Salad", "Sparkling Water"],
+    "total": "$17.90",
+    "status": "payment_failed",
+    "placedAt": "2026-06-18T19:05:00",
+    "lastPayment": "failed: card expired"
+  },
+  {
+    "orderId": "FA-1003",
+    "customer": "jordan",
+    "restaurant": "Mama's Pizzeria",
+    "items": ["Large Margherita", "Garlic Bread", "Coke"],
+    "total": "$31.20",
+    "status": "delivered",
+    "placedAt": "2026-06-18T17:20:00",
+    "deliveredAt": "2026-06-18T17:58:00"
+  },
+  {
+    "orderId": "FA-1004",
+    "customer": "taylor",
+    "restaurant": "Burrito Bros",
+    "items": ["Chicken Burrito", "Chips & Guac"],
+    "total": "$19.75",
+    "status": "preparing",
+    "placedAt": "2026-06-18T19:30:00",
+    "etaMinutes": 28
+  },
+  {
+    "orderId": "FA-1005",
+    "customer": "casey",
+    "restaurant": "Sweet Tooth Bakery",
+    "items": ["Chocolate Cake Slice", "Latte"],
+    "total": "$12.40",
+    "status": "cancelled",
+    "placedAt": "2026-06-18T16:10:00",
+    "cancelReason": "cancelled before restaurant started preparing",
+    "lastPayment": "refunded"
+  }
+]

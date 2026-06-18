@@ -253,7 +253,8 @@ export async function runAgentTurn(
     model: lastModel,
     sources,
   });
-  track('ai_answered', { conversationId, topic, provider: lastProvider, meta: { confidence: decision.combined } });
+  const answeredTopic = topic || inferTopic(userMessage);
+  track('ai_answered', { conversationId, topic: answeredTopic, provider: lastProvider, meta: { confidence: decision.combined } });
 
   // Typewriter stream the answer for a live feel (the agent reasons non-streamed
   // across providers, then we stream the resolved text token-by-token).
@@ -285,6 +286,18 @@ function bestScore(chunks: RetrievedChunk[]): number {
 }
 
 /** Build the structured handoff summary, persist the escalation, emit. */
+/** Infer a coarse topic from the query so escalation analytics aren't all "general". */
+function inferTopic(text: string): string {
+  const t = text.toLowerCase();
+  if (/refund|charge|payment|pay|card|price|cost|bill|promo|fee|tip|gift card/.test(t)) return 'payments';
+  if (/deliver|courier|driver|late|arriv|track|address|dropp|never came|where is/.test(t)) return 'delivery';
+  if (/order|cancel|missing|wrong|cold|item|reorder|schedule/.test(t)) return 'orders';
+  if (/password|login|sign in|account|2fa|email|phone|delete|security|device/.test(t)) return 'account';
+  if (/restaurant|menu|dish|allerg|vegan|cuisine|grocery|open|closed/.test(t)) return 'restaurants';
+  if (/plus|membership|subscri/.test(t)) return 'membership';
+  return 'general';
+}
+
 async function escalate(
   conversationId: string,
   ctx: ToolContext,
@@ -296,6 +309,8 @@ async function escalate(
   fallbackAnswer: string,
   topic?: string,
 ): Promise<void> {
+  // Fall back to keyword inference when the model didn't supply a topic.
+  topic = topic || inferTopic(userMessage);
   emit({ type: 'state', state: 'escalating', detail: 'Connecting you with a human agent' });
 
   const sources = sourcesFrom(ctx.collectedSources);

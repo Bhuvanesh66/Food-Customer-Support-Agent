@@ -7,7 +7,9 @@ build/
 !client/dist/**
 .env
 .env.local
-data/*.db
+# Commit a pre-seeded app.db so the deploy host does NOT run the memory-heavy
+# embedding/seed step at startup (fixes Render free 512MB OOM). The -wal/-shm
+# runtime companions stay ignored.
 data/*.db-wal
 data/*.db-shm
 *.log

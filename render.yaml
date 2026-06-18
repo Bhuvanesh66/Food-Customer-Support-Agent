@@ -9,19 +9,19 @@ services:
     name: synapse-ai
     runtime: node
     plan: free
-    # NOTE: the client is prebuilt and committed (client/dist), because the
-    # Vite + Three.js build exceeds Render free's 512MB. So we only install deps
-    # here — no build step. Migrate + seed (once) + start happen at startup.
+    # The client is prebuilt (client/dist) AND the DB ships pre-seeded
+    # (data/app.db) — both committed — because the Vite+Three build and the
+    # embedding/seed step each exceed Render free's 512MB. So the host only
+    # installs deps + starts: no build, no seed, no OOM.
+    # (No persistent disk: it would shadow the committed pre-seeded app.db.
+    #  Conversations reset on redeploy, but the knowledge base always works.)
     buildCommand: npm install
-    startCommand: npm run deploy:start
-    # Persistent disk so the SQLite database survives restarts/redeploys.
-    disk:
-      name: data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
+    startCommand: npm run deploy:start:preseeded
     envVars:
       - key: NODE_VERSION
         value: "22"
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=400"
       - key: PORT
         value: "8787"
       - key: CLIENT_ORIGIN

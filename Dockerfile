@@ -1,7 +1,8 @@
-# Single-container deploy: build the client, run Express (which serves it + the API).
+# Single-container deploy: Express serves the prebuilt client (client/dist is
+# committed) + the API. Keeps runtime memory low for 512MB hosts.
 FROM node:22-slim
 
-# better-sqlite3 needs build tools if no prebuilt binary is available.
+# better-sqlite3 may need build tools if no prebuilt binary matches.
 RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
@@ -13,13 +14,14 @@ COPY server/package.json ./server/
 COPY client/package.json ./client/
 RUN npm install
 
-# Copy the rest of the source and build the client.
+# Copy the rest of the source (client/dist is already built + committed).
 COPY . .
-RUN npm run build
 
+# Cap V8 heap to stay well under the 512MB limit at runtime.
+ENV NODE_OPTIONS=--max-old-space-size=400
 ENV PORT=8787
 EXPOSE 8787
 
-# Create schema + seed the KB on container start, then run the server.
-# (Seeding needs GEMINI_API_KEY at runtime; pass it as an env var.)
-CMD ["sh", "-c", "npm run deploy:setup && npm run start"]
+# The DB ships pre-seeded (data/app.db is committed), so startup only migrates
+# (idempotent no-op) + starts the server — NO runtime embedding (no OOM).
+CMD ["sh", "-c", "npm run deploy:start:preseeded"]

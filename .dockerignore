@@ -1,11 +1,11 @@
 node_modules
 **/node_modules
-**/dist
-data/app.db
-data/app.db-wal
-data/app.db-shm
 .git
 .env
 .env.local
 *.log
 commit.sh
+data/app.db-wal
+data/app.db-shm
+# NOTE: client/dist and data/app.db are intentionally INCLUDED (prebuilt UI +
+# pre-seeded DB) so the container needs no build/seed at runtime.

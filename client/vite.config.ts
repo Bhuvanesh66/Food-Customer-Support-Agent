@@ -17,4 +17,21 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // Keep peak build memory down on constrained hosts (e.g. Render free 512MB):
+    // disable source maps and split heavy libs into separate chunks so Rollup
+    // doesn't hold one giant bundle in memory.
+    sourcemap: false,
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          three: ['three'],
+          r3f: ['@react-three/fiber', '@react-three/drei'],
+          postprocessing: ['@react-three/postprocessing', 'postprocessing'],
+          vendor: ['react', 'react-dom', 'react-router-dom', 'framer-motion', 'zustand'],
+        },
+      },
+    },
+  },
 });

@@ -17,6 +17,7 @@
     "build": "npm run build --workspace client",
     "start": "npm run start --workspace server",
     "deploy:setup": "npm run migrate && npm run seed",
+    "deploy:start": "npm run migrate --workspace server && npm run seed --workspace server -- --if-empty && npm run start --workspace server",
     "setup": "npm install && npm run migrate && npm run seed"
   },
   "devDependencies": {

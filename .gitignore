@@ -1,6 +1,10 @@
 node_modules/
 dist/
 build/
+# Exception: commit the prebuilt client so memory-limited hosts (Render free)
+# don't have to run the heavy Vite+Three.js build (which exceeds 512MB).
+!client/dist/
+!client/dist/**
 .env
 .env.local
 data/*.db

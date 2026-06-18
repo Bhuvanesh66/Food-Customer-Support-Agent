@@ -11,16 +11,26 @@ import { makeTextPdf } from './lib/makePdf.js';
 import { env } from '../src/config/env.js';
 
 async function main() {
+  migrate();
+  const db = getDb();
+
+  // `--if-empty` (used at deploy startup): skip seeding when the KB already has
+  // content, so restarts are fast and don't re-embed (saves Gemini quota).
+  if (process.argv.includes('--if-empty')) {
+    const n = (db.prepare('SELECT COUNT(*) c FROM kb_chunks').get() as { c: number }).c;
+    if (n > 0) {
+      console.log(`• KB already seeded (${n} chunks) — skipping.`);
+      process.exit(0);
+    }
+  }
+
   if (!env.gemini.apiKey) {
     console.error('\n✗ GEMINI_API_KEY is not set. Seeding needs it to embed the knowledge base.');
     console.error('  Add it to .env (free at https://aistudio.google.com/apikey) and re-run `npm run seed`.\n');
     process.exit(1);
   }
 
-  migrate();
-
   // Reset KB + tickets so seeding is idempotent.
-  const db = getDb();
   db.exec('DELETE FROM kb_chunks; DELETE FROM kb_documents; DELETE FROM tickets;');
   console.log('• Cleared existing knowledge base + tickets');
 

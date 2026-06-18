@@ -38,7 +38,18 @@ export class ProviderError extends Error {
     super(message);
     this.name = 'ProviderError';
     this.status = status;
-    // 429 (rate limit) and 5xx are retryable → cooldown + failover.
-    this.retryable = status === 429 || (status != null && status >= 500);
+    // Retryable → cooldown this provider + fail over to the next one.
+    //  • 429 (rate limit) and 5xx server errors
+    //  • 404 (a misconfigured/unavailable free model — try another provider)
+    //  • transient connection errors (undici "Premature close", resets, timeouts)
+    const transientConn =
+      /premature close|fetch failed|ECONNRESET|ETIMEDOUT|ECONNREFUSED|socket hang up|network|terminated/i.test(
+        message,
+      );
+    this.retryable =
+      status === 429 ||
+      status === 404 ||
+      (status != null && status >= 500) ||
+      transientConn;
   }
 }

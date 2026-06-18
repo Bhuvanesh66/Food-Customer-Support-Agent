@@ -16,9 +16,13 @@ export function makeOpenAICompatible(cfg: ProviderConfig): LLMProvider {
   const client = new OpenAI({
     apiKey: cfg.apiKey,
     baseURL: cfg.baseUrl,
+    // Let the SDK retry transient connection errors (e.g. undici "Premature
+    // close" seen on some hosts) before we fail over to another provider.
+    maxRetries: 2,
+    timeout: 45_000,
     // OpenRouter recommends these headers; harmless elsewhere.
     defaultHeaders: {
-      'HTTP-Referer': 'http://localhost:5173',
+      'HTTP-Referer': 'https://food-customer-support-agent.onrender.com',
       'X-Title': 'Synapse AI',
     },
   });

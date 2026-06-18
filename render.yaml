@@ -43,4 +43,4 @@ services:
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_MODEL
-        value: moonshotai/kimi-k2:free
+        value: meta-llama/llama-4-scout:free

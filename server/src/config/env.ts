@@ -33,7 +33,7 @@ export const env = {
   },
   openrouter: {
     apiKey: process.env.OPENROUTER_API_KEY || '',
-    model: process.env.OPENROUTER_MODEL || 'moonshotai/kimi-k2:free',
+    model: process.env.OPENROUTER_MODEL || 'meta-llama/llama-4-scout:free',
   },
   nvidia: {
     apiKey: process.env.NVIDIA_API_KEY || '',

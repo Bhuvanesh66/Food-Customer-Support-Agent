@@ -213,3 +213,29 @@ export function providerHealth() {
     supportsNativeTools: s.cfg.supportsNativeTools,
   }));
 }
+
+/** Probe every provider with a trivial chat call; return raw ok/error per one. */
+export async function diagnoseProviders() {
+  ensureInit();
+  const out: Array<{ id: string; model: string; ok: boolean; reply?: string; status?: number; error?: string }> = [];
+  for (const s of states) {
+    try {
+      const r = await s.provider.chat({
+        messages: [{ role: 'user', content: 'Reply with the single word: ok' }],
+        temperature: 0,
+        maxTokens: 5,
+      });
+      out.push({ id: s.cfg.id, model: s.cfg.model, ok: true, reply: r.text.slice(0, 40) });
+    } catch (err) {
+      const e = err as ProviderError;
+      out.push({
+        id: s.cfg.id,
+        model: s.cfg.model,
+        ok: false,
+        status: e?.status,
+        error: (err instanceof Error ? err.message : String(err)).slice(0, 300),
+      });
+    }
+  }
+  return out;
+}

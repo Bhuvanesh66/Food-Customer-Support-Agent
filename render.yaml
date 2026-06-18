@@ -1,0 +1,44 @@
+# Render.com deployment — single web service (Express serves the React build).
+# Docs: https://render.com/docs/blueprint-spec
+#
+# After connecting this repo as a "Blueprint", set the API keys in the Render
+# dashboard (Environment) — they are marked sync:false so they are NOT stored in git.
+
+services:
+  - type: web
+    name: synapse-ai
+    runtime: node
+    plan: free
+    # Install everything, build the client, then create + seed the DB.
+    buildCommand: npm install && npm run build && npm run deploy:setup
+    startCommand: npm run start
+    # Persistent disk so the SQLite database survives restarts/redeploys.
+    disk:
+      name: data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: PORT
+        value: "8787"
+      - key: CLIENT_ORIGIN
+        value: "*"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_CHAT_MODEL
+        value: gemini-2.5-flash
+      - key: GEMINI_EMBED_MODEL
+        value: gemini-embedding-001
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: NVIDIA_MODEL
+        value: meta/llama-3.3-70b-instruct
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_MODEL
+        value: moonshotai/kimi-k2:free

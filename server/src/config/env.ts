@@ -41,8 +41,11 @@ export const env = {
   },
 
   agent: {
-    escalateThreshold: num(process.env.ESCALATE_THRESHOLD, 0.45),
-    retrievalFloor: num(process.env.RETRIEVAL_FLOOR, 0.55),
+    // Slightly more lenient now that the KB is richer: borderline-relevant
+    // matches resolve instead of escalating, while clearly out-of-scope
+    // queries (which score far lower) still escalate.
+    escalateThreshold: num(process.env.ESCALATE_THRESHOLD, 0.4),
+    retrievalFloor: num(process.env.RETRIEVAL_FLOOR, 0.45),
     maxIterations: num(process.env.MAX_AGENT_ITERATIONS, 4),
   },
 } as const;

@@ -17,7 +17,7 @@ export const knowledgeBaseSearch: Tool = {
       conversationId: ctx.conversationId,
       meta: { tool: 'knowledge_base_search' },
     });
-    const { chunks, maxScore } = await retrieve(query, 5);
+    const { chunks, maxScore } = await retrieve(query, 8);
     track('retrieval', {
       conversationId: ctx.conversationId,
       meta: { query, topScore: maxScore, k: chunks.length },

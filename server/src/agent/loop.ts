@@ -83,7 +83,7 @@ export async function runAgentTurn(
 
   // Pre-retrieve so we always have a retrieval signal even if the model forgets the tool.
   emit({ type: 'state', state: 'retrieving', detail: 'Searching the knowledge base' });
-  const pre = await retrieve(userMessage, 5);
+  const pre = await retrieve(userMessage, 8);
   ctx.collectedSources.push(...pre.chunks);
   if (pre.chunks.length > 0) {
     emit({ type: 'sources', sources: sourcesFrom(pre.chunks) });

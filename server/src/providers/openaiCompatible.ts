@@ -16,12 +16,15 @@ export function makeOpenAICompatible(cfg: ProviderConfig): LLMProvider {
   const client = new OpenAI({
     apiKey: cfg.apiKey,
     baseURL: cfg.baseUrl,
-    // Let the SDK retry transient connection errors (e.g. undici "Premature
-    // close" seen on some hosts) before we fail over to another provider.
-    maxRetries: 2,
+    // Let the SDK retry transient connection errors before we fail over.
+    maxRetries: 3,
     timeout: 45_000,
-    // OpenRouter recommends these headers; harmless elsewhere.
     defaultHeaders: {
+      // `Connection: close` disables keep-alive reuse, which fixes the undici
+      // "Premature close" error seen on some PaaS egress (e.g. Render) where a
+      // pooled connection is dropped between requests.
+      Connection: 'close',
+      // OpenRouter recommends these; harmless elsewhere.
       'HTTP-Referer': 'https://food-customer-support-agent.onrender.com',
       'X-Title': 'Synapse AI',
     },

@@ -18,6 +18,9 @@ type HandoffSummary = {
   sentiment?: string;
 };
 
+export type Sentiment = 'positive' | 'neutral' | 'frustrated' | 'angry';
+export type Urgency = 'low' | 'normal' | 'high';
+
 type ChatStore = {
   conversationId: string | null;
   status: ConversationStatus;
@@ -27,9 +30,11 @@ type ChatStore = {
   lastEscalation: HandoffSummary | null;
   satisfactionGiven: boolean;
   turnCount: number; // assistant answers so far (gates the satisfaction prompt)
+  sentiment: Sentiment; // latest detected customer sentiment
+  urgency: Urgency; // latest detected urgency
 
   init: () => Promise<void>;
-  send: (text: string) => Promise<void>;
+  send: (text: string, imageDataUrl?: string) => Promise<void>;
   setFeedback: (messageId: string, rating: 1 | -1) => Promise<void>;
   submitSatisfaction: (rating: number, comment?: string) => Promise<void>;
   reset: () => Promise<void>;
@@ -48,6 +53,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   lastEscalation: null,
   satisfactionGiven: false,
   turnCount: 0,
+  sentiment: 'neutral',
+  urgency: 'normal',
 
   async init() {
     if (get().conversationId) return;
@@ -67,16 +74,24 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     });
   },
 
-  async send(text) {
+  async send(text, imageDataUrl) {
     const { conversationId, streaming } = get();
-    if (!conversationId || streaming || !text.trim()) return;
+    if (!conversationId || streaming || (!text.trim() && !imageDataUrl)) return;
+
+    // Split a data URL (data:image/jpeg;base64,XXXX) into mime + base64.
+    let image: { data: string; mimeType: string } | undefined;
+    if (imageDataUrl) {
+      const m = imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+      if (m) image = { mimeType: m[1], data: m[2] };
+    }
 
     const ui = useUIStore.getState();
     const userMsg: ChatMessage = {
       id: uid(),
       role: 'user',
-      content: text,
+      content: text || (image ? '📷 Photo of the issue' : ''),
       createdAt: Date.now(),
+      imageUrl: imageDataUrl,
     };
     // Placeholder assistant message we stream into.
     const assistantId = uid();
@@ -109,6 +124,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
         case 'sources':
           streamedSources = (ev.sources as Source[]) ?? [];
+          break;
+        case 'sentiment':
+          set({
+            sentiment: (ev.sentiment as Sentiment) ?? 'neutral',
+            urgency: (ev.urgency as Urgency) ?? 'normal',
+          });
           break;
         case 'confidence':
           confidence = ev.confidence as number;
@@ -175,7 +196,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     };
 
     try {
-      await streamChat({ conversationId, message: text }, onEvent);
+      await streamChat({ conversationId, message: text, image }, onEvent);
     } catch (err) {
       set((s) => ({
         messages: s.messages.map((m) =>
@@ -223,6 +244,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       lastEscalation: null,
       satisfactionGiven: false,
       turnCount: 0,
+      sentiment: 'neutral',
+      urgency: 'normal',
     });
     useUIStore.getState().setAgentState('idle');
     await get().init();

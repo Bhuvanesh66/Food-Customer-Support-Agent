@@ -47,6 +47,14 @@ export function GlassBubble({ message, streaming, stateDetail, onRate }: Props) 
           </div>
         )}
 
+        {message.imageUrl && (
+          <img
+            src={message.imageUrl}
+            alt="attached"
+            className="mb-2 max-h-48 rounded-lg border border-white/10 object-cover"
+          />
+        )}
+
         {showTyping ? (
           <TypingIndicator detail={stateDetail} />
         ) : (

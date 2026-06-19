@@ -46,6 +46,7 @@ export type SSEEvent = {
     | 'state'
     | 'token'
     | 'confidence'
+    | 'sentiment'
     | 'sources'
     | 'final'
     | 'escalated'
@@ -58,7 +59,11 @@ export type SSEEvent = {
  * ReadableStream reader (not EventSource). Each SSE frame is `data: {json}\n\n`.
  */
 export async function streamChat(
-  body: { conversationId: string; message: string },
+  body: {
+    conversationId: string;
+    message: string;
+    image?: { data: string; mimeType: string };
+  },
   onEvent: (ev: SSEEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {

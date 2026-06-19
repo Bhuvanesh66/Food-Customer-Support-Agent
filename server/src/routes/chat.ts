@@ -8,15 +8,26 @@ export const chatRouter = Router();
 
 const Body = z.object({
   conversationId: z.string().min(1),
-  message: z.string().min(1).max(4000),
+  // Allow an empty message when an image is attached (image-only complaints).
+  message: z.string().max(4000).default(''),
+  // Optional complaint photo (base64, no data: prefix) + mime type.
+  image: z
+    .object({
+      data: z.string().min(1),
+      mimeType: z.string().min(1),
+    })
+    .optional(),
 });
 
 chatRouter.post('/', async (req, res) => {
   const parsed = Body.safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({ error: 'conversationId and message are required.' });
+    return res.status(400).json({ error: 'conversationId is required.' });
   }
-  const { conversationId, message } = parsed.data;
+  const { conversationId, message, image } = parsed.data;
+  if (!message.trim() && !image) {
+    return res.status(400).json({ error: 'Provide a message or an image.' });
+  }
 
   const conv = getConversation(conversationId);
   if (!conv) return res.status(404).json({ error: 'Conversation not found.' });
@@ -42,7 +53,7 @@ chatRouter.post('/', async (req, res) => {
   };
 
   try {
-    await runAgentTurn(conversationId, message, emit);
+    await runAgentTurn(conversationId, message, emit, image);
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Agent error';
     emit({ type: 'error', message: msg });

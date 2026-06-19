@@ -26,6 +26,7 @@ export type ChatMessage = {
   model?: string;
   pending?: boolean; // streaming in progress (client-only flag)
   feedback?: 1 | -1 | null;
+  imageUrl?: string; // attached complaint photo (data URL, for thumbnail)
 };
 
 export type Conversation = {

@@ -58,6 +58,18 @@ rate limits and token budgets never interrupt a conversation.
 | 📊 **Admin Analytics Console** | Floating 3D metric islands, a topic network graph, an escalation heatmap, query-volume wave, top unanswered questions, and live provider-rotation health. |
 | 👍 **Feedback Loop** | 👍/👎 per answer (negatives queue for KB review) **plus** a 1–5★ satisfaction prompt. Both surface in the admin Feedback Review page. |
 
+### 🚀 Standout features (beyond the brief)
+
+These elevate the project from a RAG chatbot to a **multimodal, adaptive support platform** — all on the **same free API keys** (no extra signups):
+
+| Feature | Description |
+|---|---|
+| 🎙️ **Voice-First Support** | Speak your issue (browser Speech-to-Text) and hear replies spoken back (Text-to-Speech). Hidden gracefully where unsupported — typing always works. |
+| 📷 **Vision Complaint Detection** | Attach a photo of a food/order problem → **Gemini multimodal** assesses it, drafts a complaint + suggested resolution, and can open a ticket. |
+| 😟 **Emotion- & Urgency-Aware Escalation** | The agent classifies customer sentiment + urgency each turn; angry/time-critical messages escalate **earlier** with an empathetic tone. Surfaced as a live mood chip + in the handoff. |
+| 🧑‍💼 **AI Copilot for Human Agents** | On handoff, the agent view shows the structured summary **plus 2–3 AI-suggested replies** (one-click copy) and the detected sentiment — agent-assist, not just a context dump. |
+| 🔁 **Self-Learning Knowledge Base** | Clusters unanswered questions into KB gaps, **LLM-drafts a new article**, and admin one-click **publishes it live** — the agent answers it next time. The startup flywheel. |
+
 ---
 
 ## 🏗️ Architecture

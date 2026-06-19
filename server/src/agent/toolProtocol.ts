@@ -11,6 +11,9 @@
  * balanced JSON object in the text.
  */
 
+export type Sentiment = 'positive' | 'neutral' | 'frustrated' | 'angry';
+export type Urgency = 'low' | 'normal' | 'high';
+
 export type ToolCall = { kind: 'tool'; tool: string; args: Record<string, unknown> };
 export type FinalAnswer = {
   kind: 'final';
@@ -18,6 +21,8 @@ export type FinalAnswer = {
   confidence: number;
   answerable: boolean;
   topic?: string;
+  sentiment: Sentiment;
+  urgency: Urgency;
 };
 export type ParsedAction = ToolCall | FinalAnswer | { kind: 'unparseable'; raw: string };
 
@@ -83,6 +88,8 @@ export function parseAction(text: string): ParsedAction {
       confidence,
       answerable,
       topic: typeof obj.topic === 'string' ? obj.topic : undefined,
+      sentiment: parseSentiment(obj.sentiment),
+      urgency: parseUrgency(obj.urgency),
     };
   }
 
@@ -91,4 +98,11 @@ export function parseAction(text: string): ParsedAction {
 
 function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n));
+}
+
+function parseSentiment(v: unknown): Sentiment {
+  return v === 'positive' || v === 'frustrated' || v === 'angry' ? v : 'neutral';
+}
+function parseUrgency(v: unknown): Urgency {
+  return v === 'low' || v === 'high' ? v : 'normal';
 }

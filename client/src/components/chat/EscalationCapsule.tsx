@@ -10,6 +10,7 @@ type HandoffSummary = {
   confidence: number;
   suggestedNextSteps: string[];
   sentiment?: string;
+  urgency?: string;
 };
 
 /**
@@ -62,8 +63,18 @@ export function EscalationCapsule({ summary }: { summary: HandoffSummary }) {
           </div>
         </div>
       )}
-      <div className="mt-2 flex items-center justify-between font-mono text-[11px] text-muted">
-        <span>confidence {(summary.confidence * 100).toFixed(0)}%</span>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] text-muted">
+        <div className="flex items-center gap-2">
+          <span>confidence {(summary.confidence * 100).toFixed(0)}%</span>
+          {summary.sentiment && summary.sentiment !== 'neutral' && (
+            <span className="rounded-full bg-white/5 px-2 py-0.5 capitalize text-warning">
+              {summary.sentiment}
+            </span>
+          )}
+          {summary.urgency === 'high' && (
+            <span className="rounded-full bg-danger/15 px-2 py-0.5 uppercase text-danger">urgent</span>
+          )}
+        </div>
         <span className="text-warning">queued for a human agent</span>
       </div>
     </motion.div>

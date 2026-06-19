@@ -67,7 +67,8 @@ export type HandoffSummary = {
   retrievedSources: Source[];
   confidence: number;
   suggestedNextSteps: string[];
-  sentiment?: 'positive' | 'neutral' | 'frustrated';
+  sentiment?: 'positive' | 'neutral' | 'frustrated' | 'angry';
+  urgency?: 'low' | 'normal' | 'high';
 };
 
 export type Ticket = {

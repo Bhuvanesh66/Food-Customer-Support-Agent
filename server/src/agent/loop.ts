@@ -2,10 +2,11 @@ import { env } from '../config/env.js';
 import { callWithFailover } from '../providers/registry.js';
 import type { ChatMessage as LLMMessage } from '../providers/types.js';
 import { systemPrompt, PROTOCOL_REPAIR } from './prompts.js';
-import { parseAction } from './toolProtocol.js';
+import { parseAction, type Sentiment, type Urgency } from './toolProtocol.js';
 import { getTool, type ToolContext } from './tools/index.js';
-import { decideConfidence } from './confidence.js';
+import { decideConfidence, urgencyBoost } from './confidence.js';
 import { retrieve, type RetrievedChunk } from '../rag/retrieve.js';
+import { analyzeComplaintImage } from '../vision/analyzeImage.js';
 import { listMessages, addMessage } from '../db/repo/messages.js';
 import { createEscalation } from '../db/repo/escalations.js';
 import { setConversationStatus } from '../db/repo/conversations.js';
@@ -22,6 +23,7 @@ export type AgentEvent =
   | { type: 'token'; delta: string }
   | { type: 'sources'; sources: Source[] }
   | { type: 'confidence'; confidence: number }
+  | { type: 'sentiment'; sentiment: Sentiment; urgency: Urgency }
   | { type: 'final'; text: string; confidence: number; provider: string; model: string; messageId: string; sources: Source[] }
   | { type: 'escalated'; escalationId: string; reason: string; summary: HandoffSummary; messageId: string }
   | { type: 'error'; message: string };
@@ -75,15 +77,42 @@ export async function runAgentTurn(
   conversationId: string,
   userMessage: string,
   emit: AgentEmit,
+  image?: { data: string; mimeType: string },
 ): Promise<void> {
-  addMessage({ conversationId, role: 'user', content: userMessage });
+  // Record the user turn (note attached image so it shows in history).
+  addMessage({
+    conversationId,
+    role: 'user',
+    content: userMessage || (image ? '[sent a photo of the issue]' : ''),
+  });
   track('query_received', { conversationId });
 
   const ctx: ToolContext = { conversationId, collectedSources: [] };
 
+  // ── Vision pre-step: if a complaint photo was attached, analyze it first and
+  // inject the structured assessment so the agent drafts a resolution / ticket.
+  let imageAnalysisBlock = '';
+  if (image) {
+    emit({ type: 'state', state: 'retrieving', detail: 'Looking at your photo' });
+    try {
+      const analysis = await analyzeComplaintImage(image.data, image.mimeType, userMessage);
+      imageAnalysisBlock =
+        `[image_analysis] The customer attached a photo. Vision assessment:\n` +
+        `issue: ${analysis.issue}\nseverity: ${analysis.severity}\n` +
+        `itemsAffected: ${analysis.itemsAffected.join(', ') || 'unspecified'}\n` +
+        `suggestedResolution: ${analysis.suggestedResolution}\n` +
+        `foodRelated: ${analysis.isFoodRelated}\n` +
+        `Use this to acknowledge the problem, propose the resolution, and create a ticket if warranted.`;
+      track('tool_called', { conversationId, meta: { tool: 'vision_analysis', severity: analysis.severity } });
+    } catch (err) {
+      imageAnalysisBlock = `[image_analysis] Could not analyze the attached photo (${err instanceof Error ? err.message : 'error'}). Ask the customer to describe the issue.`;
+    }
+  }
+
   // Pre-retrieve so we always have a retrieval signal even if the model forgets the tool.
   emit({ type: 'state', state: 'retrieving', detail: 'Searching the knowledge base' });
-  const pre = await retrieve(userMessage, 8);
+  const retrievalQuery = userMessage || 'order food quality problem refund complaint';
+  const pre = await retrieve(retrievalQuery, 8);
   ctx.collectedSources.push(...pre.chunks);
   if (pre.chunks.length > 0) {
     emit({ type: 'sources', sources: sourcesFrom(pre.chunks) });
@@ -93,6 +122,9 @@ export async function runAgentTurn(
     { role: 'system', content: systemPrompt() },
     ...buildHistory(conversationId),
   ];
+  if (imageAnalysisBlock) {
+    messages.push({ role: 'user', content: imageAnalysisBlock });
+  }
   // Inject the pre-retrieved context as a tool observation.
   if (pre.chunks.length > 0) {
     const ctxBlock = pre.chunks
@@ -112,6 +144,8 @@ export async function runAgentTurn(
   let answerable = true;
   let finalText = '';
   let topic: string | undefined;
+  let sentiment: Sentiment = 'neutral';
+  let urgency: Urgency = 'normal';
   let resolved = false;
 
   const maxIter = env.agent.maxIterations;
@@ -155,6 +189,8 @@ export async function runAgentTurn(
       selfConfidence = action.confidence;
       answerable = action.answerable;
       topic = action.topic;
+      sentiment = action.sentiment;
+      urgency = action.urgency;
       resolved = true;
       break;
     }
@@ -224,8 +260,15 @@ export async function runAgentTurn(
     return;
   }
 
-  const decision = decideConfidence({ retrievalScore, selfAssessment: selfConfidence, answerable });
+  const boost = urgencyBoost(sentiment, urgency);
+  const decision = decideConfidence({
+    retrievalScore,
+    selfAssessment: selfConfidence,
+    answerable,
+    urgencyBoost: boost,
+  });
   emit({ type: 'confidence', confidence: decision.combined });
+  emit({ type: 'sentiment', sentiment, urgency });
 
   if (decision.shouldEscalate) {
     await escalate(
@@ -238,6 +281,7 @@ export async function runAgentTurn(
       emit,
       finalText,
       topic,
+      sentiment,
     );
     return;
   }
@@ -308,9 +352,12 @@ async function escalate(
   emit: AgentEmit,
   fallbackAnswer: string,
   topic?: string,
+  sentiment: Sentiment = 'neutral',
+  urgency: Urgency = 'normal',
 ): Promise<void> {
   // Fall back to keyword inference when the model didn't supply a topic.
   topic = topic || inferTopic(userMessage);
+  emit({ type: 'sentiment', sentiment, urgency });
   emit({ type: 'state', state: 'escalating', detail: 'Connecting you with a human agent' });
 
   const sources = sourcesFrom(ctx.collectedSources);
@@ -334,7 +381,8 @@ async function escalate(
         : 'No strong knowledge base match — this may be a gap to document.',
       'Respond to the customer and resolve, or create/assign a ticket.',
     ],
-    sentiment: 'neutral',
+    sentiment,
+    urgency,
   };
 
   const esc = createEscalation({

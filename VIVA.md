@@ -260,3 +260,133 @@ The work split across the team by subsystem (reflected in the Git commit history
   (currently **100% resolution, 3/3 escalation**).
 - **How do you prevent hallucination?** Answer only from retrieved context + show sources; low
   confidence escalates; out-of-scope is forced to escalate.
+
+---
+
+## 5. Terminology & Tech Choices (study sheet)
+
+> Clear, examiner-ready answers to the "what is X / why did you use X" questions. The whole team
+> should be able to give these.
+
+### Q: You used TypeScript everywhere — so why React and Express?
+
+**TypeScript is a *language*; React and Express are *frameworks* written in that language.** They
+aren't alternatives — they work together.
+
+- **TypeScript** = the language you write in (typed JavaScript). It's *how* you write code.
+- **React** = a frontend library that renders the UI (chat bubbles, composer, admin dashboard, 3D
+  orb). Without it you'd manipulate the browser DOM by hand.
+- **Express** = a backend framework that runs the web server / API (`/api/chat`, talking to the DB,
+  calling the LLMs). Without it you'd hand-write a raw Node HTTP server with no routing.
+
+You **cannot** build the app with "just TypeScript" — it only gives typed JavaScript; it doesn't
+render UI or serve HTTP. Both React and Express are **imported into TypeScript files** — our whole
+stack (93 `.ts`/`.tsx` files) is TypeScript, frontend and backend. That gives **end-to-end type
+safety across the full stack** — a strength.
+
+> **One-liner:** *"TypeScript is the language; React renders the frontend, Express runs the backend
+> API — both written in TypeScript, giving end-to-end type safety."*
+
+### Q: What is multi-turn?
+
+**Multi-turn = the agent remembers earlier messages in the same conversation**, so the user doesn't
+repeat themselves. A "turn" is one back-and-forth.
+
+```
+Turn 1  You: "How do refunds work?"
+        AI:  "Credit instantly, or your card in 3-5 business days."
+Turn 2  You: "How long does that take to my card?"   ← "that" = refunds from Turn 1
+        AI:  "Card refunds take 3-5 business days."   ← understood the context
+```
+
+**How our code does it:** every message is saved to the SQLite `messages` table by `conversationId`;
+before each turn, `buildHistory()` reloads the conversation and feeds it back to the LLM (capped at a
+**3000-token budget** so long chats don't overflow the context window). *(see `server/src/agent/loop.ts`)*
+
+> **One-liner:** *"We store every message by conversation ID and reload the history each turn, so
+> follow-ups like 'how long does that take?' are understood in context."*
+
+### Q: What is SQLite and why did you use it?
+
+**SQLite is a serverless, file-based SQL database** — the entire database is **one file**
+(`data/app.db`), read/written directly by the app. No server to install, start, or connect to over a
+network. (It's the most-deployed database in the world — in every phone and browser.)
+
+**Why we chose it:**
+1. **Zero-ops** — no DB server to manage; the file *is* the database. Ideal for a student timeline.
+2. **Single-process fit** — our backend is one Express process that owns the data. (Postgres shines
+   when many services share a DB; we don't have that.)
+3. **It stores our vectors too** — RAG embeddings (768-dim) are saved as **Float32 BLOBs** in
+   `kb_chunks`, so one file holds both relational data **and** the vector store — **no separate
+   vector DB** (no Pinecone/Chroma).
+4. **Fast at our scale** — `better-sqlite3` is synchronous & in-process (no network hop); brute-force
+   cosine over hundreds of chunks is **<10ms**.
+5. **Trivial deploy** — the DB ships as a committed file inside the container; no managed-DB service.
+6. **Reliable** — ACID transactions; we enable **WAL mode** (concurrent reads) and `foreign_keys=ON`.
+
+**When would you move off SQLite?** *"At scale — concurrent writes from many services, horizontal
+scaling, or an ANN vector index beyond ~10k chunks — we'd move to **Postgres + pgvector** (same SQL,
+managed server). At our scale that complexity buys nothing."*
+
+> **One-liner:** *"A file-based SQL database — zero-ops, and it stores our vectors as BLOBs too, so
+> one file is both the data store and the vector store. We'd switch to Postgres+pgvector only at
+> scale."*
+
+### Q: What chunking strategy did you use?
+
+**Structure-aware (section-level) chunking with overlap.** *(see `server/src/rag/chunk.ts`)*
+
+| Parameter | Value |
+|---|---|
+| Target chunk size | **180 tokens** |
+| Max chunk size | **300 tokens** (oversized blocks hard-split by sentence) |
+| Overlap | **40 tokens** (~20%) |
+
+**How:** split the text on **markdown headings / blank lines** (not blind fixed-size cuts) → pack
+paragraphs up to ~180 tokens → carry a 40-token overlap into the next chunk for continuity.
+
+**Why:** topic-aligned chunks give **sharper retrieval** — a refund query matches the *refund
+section* strongly, instead of a big diluted chunk mixing many topics. Overlap preserves meaning
+across boundaries.
+
+**Rejected alternatives:** fixed-size character chunking (cuts mid-sentence, mixes topics);
+whole-document chunks (vague matches, can't pinpoint the section).
+
+> **One-liner:** *"Structure-aware section-level chunking — split on headings, ~180-token chunks,
+> 40-token overlap — for sharp, focused retrieval instead of diluted fixed-size chunks."*
+
+### Q: What prompting style did you use?
+
+A **ReAct-style agent prompt with a strict single-JSON tool protocol.** *(see `server/src/agent/prompts.ts`)*
+
+The system prompt has four parts: **(1) role/persona**, **(2) a strict output protocol** (reply with
+exactly one JSON object — either `{"tool":…}` to act or `{"final":…, "confidence":…, "sentiment":…,
+"urgency":…}` to answer), **(3) policy/grounding rules** ("answer ONLY from the KB", "always search
+first", "escalate when…", order+policy linking, empathy), and **(4) the tool definitions**.
+
+**Key technique — prompted JSON protocol (not native function-calling):** we instruct the model to
+emit JSON and parse it tolerantly, instead of using each provider's built-in function-calling. **Why:**
+we rotate across 4 providers and some free models don't reliably support `response_format`/native
+tools; prompted JSON + low temperature (0.2) + a tolerant parser gives near-deterministic structured
+output on **every** provider — it's provider-agnostic.
+
+Other choices: **ReAct** (reason → act → observe → repeat, ≤4 iterations); **grounding instructions**
+to prevent hallucination; **self-assessment** (the model reports its own confidence/sentiment/urgency,
+which drive escalation).
+
+> **One-liner:** *"A ReAct-style agent prompt with a strict single-JSON tool protocol — the model
+> emits a tool call or a final answer with self-reported confidence/sentiment. We use prompted JSON
+> (not native function-calling) so it works across all 4 providers, plus grounding rules to prevent
+> hallucination."*
+
+### Q: What is RAG / embeddings / cosine similarity? (quick definitions)
+
+- **RAG (Retrieval-Augmented Generation):** before the LLM answers, we **retrieve** relevant
+  knowledge-base chunks and feed them in — so answers are grounded in real policy, not invented.
+- **Embedding:** a model (`gemini-embedding-001`) turns text into a **vector of 768 numbers** that
+  captures its *meaning*. Similar meanings → nearby vectors.
+- **Cosine similarity:** measures the **angle** between two vectors (0–1). High score = similar
+  meaning. We embed the query, compare it against every chunk's vector, and take the **top-8** — that's
+  how "my food was cold" finds the *food-quality* policy without sharing any keywords.
+- **SSE (Server-Sent Events):** a one-way stream from server → browser, used to **stream the
+  answer token-by-token** (the typewriter effect) and push live status events to the chat.

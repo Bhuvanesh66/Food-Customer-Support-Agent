@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Sparkles, Copy } from 'lucide-react';
 import { AdminShell } from '../components/admin/AdminShell';
 import { HoloCard } from '../components/ui/HoloCard';
 import { apiGet, apiSend } from '../api/client';
@@ -11,6 +12,8 @@ type HandoffSummary = {
   retrievedSources: Source[];
   confidence: number;
   suggestedNextSteps: string[];
+  sentiment?: string;
+  urgency?: string;
 };
 
 type Escalation = {
@@ -27,6 +30,8 @@ type Escalation = {
 export default function AdminEscalations() {
   const [rows, setRows] = useState<Escalation[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<Record<string, string[]>>({});
+  const [loadingSug, setLoadingSug] = useState<string | null>(null);
 
   const load = () => apiGet<Escalation[]>('/escalations').then(setRows).catch(() => {});
   useEffect(() => {
@@ -34,6 +39,19 @@ export default function AdminEscalations() {
     const t = setInterval(load, 6000);
     return () => clearInterval(t);
   }, []);
+
+  // AI Copilot: fetch suggested replies for a human agent.
+  const getSuggestions = async (id: string) => {
+    setLoadingSug(id);
+    try {
+      const r = await apiGet<{ replies: string[] }>(`/escalations/${id}/suggestions`);
+      setSuggestions((s) => ({ ...s, [id]: r.replies }));
+    } catch {
+      setSuggestions((s) => ({ ...s, [id]: ['(Could not generate suggestions — try again.)'] }));
+    } finally {
+      setLoadingSug(null);
+    }
+  };
 
   const claim = async (e: Escalation) => {
     await apiSend(`/escalations/${e.id}`, 'PATCH', { status: 'claimed', assignedTo: 'Demo Agent' });
@@ -84,6 +102,12 @@ export default function AdminEscalations() {
                     <span className="text-muted">
                       conf {Math.round((e.confidence ?? 0) * 100)}%
                     </span>
+                    {e.handoff_summary.sentiment && e.handoff_summary.sentiment !== 'neutral' && (
+                      <span className="capitalize text-warning">{e.handoff_summary.sentiment}</span>
+                    )}
+                    {e.handoff_summary.urgency === 'high' && (
+                      <span className="rounded bg-danger/15 px-1.5 text-danger">URGENT</span>
+                    )}
                   </div>
                 </div>
                 <span
@@ -121,6 +145,42 @@ export default function AdminEscalations() {
                       {e.handoff_summary.suggestedNextSteps?.map((s, i) => <li key={i}>{s}</li>)}
                     </ul>
                   </div>
+
+                  {/* AI Copilot — suggested replies for the human agent */}
+                  <div className="mb-4 rounded-xl border border-cyan/20 bg-cyan/5 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.15em] text-cyan">
+                        <Sparkles size={12} /> AI Copilot — suggested replies
+                      </span>
+                      {!suggestions[e.id] && (
+                        <button
+                          onClick={() => getSuggestions(e.id)}
+                          disabled={loadingSug === e.id}
+                          className="rounded-lg bg-cyan/15 px-3 py-1 text-xs text-cyan transition-colors hover:bg-cyan/25 disabled:opacity-50"
+                        >
+                          {loadingSug === e.id ? 'Generating…' : 'Generate'}
+                        </button>
+                      )}
+                    </div>
+                    {suggestions[e.id]?.map((r, i) => (
+                      <div key={i} className="mb-2 flex items-start gap-2 rounded-lg bg-black/20 p-2.5">
+                        <p className="flex-1 text-sm text-ink/90">{r}</p>
+                        <button
+                          onClick={() => navigator.clipboard?.writeText(r)}
+                          aria-label="Copy"
+                          className="shrink-0 rounded p-1 text-muted transition-colors hover:text-cyan"
+                        >
+                          <Copy size={13} />
+                        </button>
+                      </div>
+                    ))}
+                    {!suggestions[e.id] && loadingSug !== e.id && (
+                      <p className="text-xs text-muted">
+                        Click Generate to draft 2–3 ready-to-send replies from the context above.
+                      </p>
+                    )}
+                  </div>
+
                   <div className="flex gap-2">
                     {e.status === 'open' && (
                       <button

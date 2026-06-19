@@ -5,9 +5,23 @@ import {
   getEscalation,
   updateEscalation,
 } from '../db/repo/escalations.js';
-import type { EscalationStatus } from '../types.js';
+import type { EscalationStatus, HandoffSummary } from '../types.js';
+import { suggestReplies } from '../agent/copilot.js';
 
 export const escalationsRouter = Router();
+
+// AI Copilot: draft suggested replies for a human agent from the handoff summary.
+escalationsRouter.get('/:id/suggestions', async (req, res) => {
+  const esc = getEscalation(req.params.id);
+  if (!esc) return res.status(404).json({ error: 'Escalation not found' });
+  try {
+    const summary = JSON.parse(esc.handoff_summary) as HandoffSummary;
+    const replies = await suggestReplies(summary);
+    res.json({ replies });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to suggest replies' });
+  }
+});
 
 escalationsRouter.get('/', (req, res) => {
   const status = req.query.status as EscalationStatus | undefined;

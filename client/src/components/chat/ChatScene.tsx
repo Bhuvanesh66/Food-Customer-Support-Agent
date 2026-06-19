@@ -1,8 +1,10 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
-import { ArrowLeft, RotateCcw } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { clsx } from 'clsx';
 import { useChatStore } from '../../store/useChatStore';
+import { useSpeech } from '../../hooks/useSpeech';
 import { hasWebGL } from '../../three/shared/usePerfDetect';
 import { OrbAvatar } from '../../three/OrbAvatar';
 import { AgentStateBadge } from './AgentStateBadge';
@@ -11,6 +13,7 @@ import { Composer } from './Composer';
 import { EscalationCapsule } from './EscalationCapsule';
 import { SuggestedQuestions } from './SuggestedQuestions';
 import { SatisfactionPrompt } from './SatisfactionPrompt';
+import { MoodChip } from './MoodChip';
 
 export function ChatScene() {
   const {
@@ -21,6 +24,8 @@ export function ChatScene() {
     lastEscalation,
     satisfactionGiven,
     turnCount,
+    sentiment,
+    urgency,
     init,
     send,
     setFeedback,
@@ -29,6 +34,9 @@ export function ChatScene() {
   } = useChatStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const webgl = hasWebGL();
+  const { ttsSupported, speak, cancelSpeech } = useSpeech();
+  const [voiceOn, setVoiceOn] = useState(false);
+  const lastSpokenId = useRef<string | null>(null);
 
   useEffect(() => {
     void init();
@@ -37,6 +45,23 @@ export function ChatScene() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, lastEscalation]);
+
+  // Voice-first: read each newly-completed assistant reply aloud when enabled.
+  useEffect(() => {
+    if (!voiceOn || streaming) return;
+    const last = messages[messages.length - 1];
+    if (last && last.role === 'assistant' && !last.pending && last.id !== lastSpokenId.current) {
+      lastSpokenId.current = last.id;
+      speak(last.content);
+    }
+  }, [messages, streaming, voiceOn, speak]);
+
+  const toggleVoice = () => {
+    setVoiceOn((on) => {
+      if (on) cancelSpeech();
+      return !on;
+    });
+  };
 
   const humanMode = status === 'human' || status === 'awaiting_human';
   // Suggested questions while the chat is fresh (only the welcome message shown).
@@ -52,13 +77,33 @@ export function ChatScene() {
           <ArrowLeft size={18} />
           <span className="font-display text-sm">Synapse&nbsp;AI</span>
         </Link>
-        <AgentStateBadge status={status} />
-        <button
-          onClick={() => void reset()}
-          className="flex items-center gap-1.5 rounded-full border border-hairline px-3 py-1.5 text-xs text-muted transition-colors hover:text-ink"
-        >
-          <RotateCcw size={13} /> New chat
-        </button>
+        <div className="flex items-center gap-2">
+          <MoodChip sentiment={sentiment} urgency={urgency} />
+          <AgentStateBadge status={status} />
+        </div>
+        <div className="flex items-center gap-2">
+          {ttsSupported && (
+            <button
+              onClick={toggleVoice}
+              aria-label={voiceOn ? 'Mute voice' : 'Enable voice replies'}
+              title={voiceOn ? 'Voice replies on' : 'Voice replies off'}
+              className={clsx(
+                'flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors',
+                voiceOn
+                  ? 'border-cyan/40 text-cyan'
+                  : 'border-hairline text-muted hover:text-ink',
+              )}
+            >
+              {voiceOn ? <Volume2 size={13} /> : <VolumeX size={13} />} Voice
+            </button>
+          )}
+          <button
+            onClick={() => void reset()}
+            className="flex items-center gap-1.5 rounded-full border border-hairline px-3 py-1.5 text-xs text-muted transition-colors hover:text-ink"
+          >
+            <RotateCcw size={13} /> New chat
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-1 gap-5 overflow-hidden">
@@ -106,7 +151,7 @@ export function ChatScene() {
                 {showSuggestions && (
                   <SuggestedQuestions onPick={(q) => void send(q)} />
                 )}
-                <Composer disabled={streaming} onSend={(t) => void send(t)} />
+                <Composer disabled={streaming} onSend={(t, img) => void send(t, img)} />
               </>
             )}
           </div>

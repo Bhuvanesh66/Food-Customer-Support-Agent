@@ -3,6 +3,7 @@ import { Upload, Link2, FileText, Trash2, Loader2 } from 'lucide-react';
 import { AdminShell } from '../components/admin/AdminShell';
 import { HoloCard } from '../components/ui/HoloCard';
 import { GlowButton } from '../components/ui/GlowButton';
+import { SelfLearningPanel } from '../components/admin/SelfLearningPanel';
 import { apiGet, apiSend, apiUpload } from '../api/client';
 
 type KbDoc = {
@@ -195,6 +196,11 @@ export default function AdminKb() {
             ))}
           </div>
         </HoloCard>
+      </div>
+
+      {/* Self-Learning KB — the startup flywheel */}
+      <div className="mt-6">
+        <SelfLearningPanel onPublished={load} />
       </div>
     </AdminShell>
   );

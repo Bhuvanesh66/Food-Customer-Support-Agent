@@ -15,6 +15,7 @@ import { kbRouter } from './routes/kb.js';
 import { feedbackRouter } from './routes/feedback.js';
 import { escalationsRouter } from './routes/escalations.js';
 import { analyticsRouter } from './routes/analytics.js';
+import { kbSuggestionsRouter } from './routes/kbSuggestions.js';
 
 // Ensure schema exists + providers are initialized at boot.
 migrate();
@@ -41,6 +42,7 @@ app.use('/api/kb', kbRouter);
 app.use('/api/feedback', feedbackRouter);
 app.use('/api/escalations', escalationsRouter);
 app.use('/api/admin', analyticsRouter);
+app.use('/api/admin', kbSuggestionsRouter);
 
 // ── Serve the built client (production) ──────────────────────────────────────
 // In a single-service deploy, Express serves the React SPA from client/dist so

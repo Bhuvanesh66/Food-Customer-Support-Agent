@@ -105,3 +105,40 @@ export function getAnalytics() {
     providerUsage,
   };
 }
+
+/**
+ * KB gaps for the self-learning loop: cluster unanswered/escalated queries by
+ * topic, with example questions per cluster, so the admin can draft a new
+ * article that fills the gap.
+ */
+export function kbGaps(minCount = 1) {
+  const db = getDb();
+  const clusters = db
+    .prepare(
+      `SELECT COALESCE(topic, 'general') AS topic, COUNT(*) AS n
+         FROM analytics_events
+        WHERE type = 'unanswered'
+        GROUP BY topic
+        HAVING n >= ?
+        ORDER BY n DESC
+        LIMIT 8`,
+    )
+    .all(minCount) as Array<{ topic: string; n: number }>;
+
+  return clusters.map((c) => {
+    const examples = db
+      .prepare(
+        `SELECT DISTINCT json_extract(meta, '$.query') AS query
+           FROM analytics_events
+          WHERE type = 'unanswered' AND COALESCE(topic, 'general') = ?
+            AND json_extract(meta, '$.query') IS NOT NULL
+          ORDER BY created_at DESC LIMIT 5`,
+      )
+      .all(c.topic) as Array<{ query: string | null }>;
+    return {
+      topic: c.topic,
+      count: c.n,
+      examples: examples.map((e) => e.query).filter((q): q is string => Boolean(q)),
+    };
+  }).filter((g) => g.examples.length > 0);
+}

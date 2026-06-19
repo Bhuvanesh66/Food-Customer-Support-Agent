@@ -10,6 +10,8 @@ multi-provider LLM rotation, an immersive 3D chat UI, and a holographic admin co
 
 `RAG + Agents` · Assignment #1
 
+**🌐 Live:** https://food-customer-support-agent.onrender.com · **🎤 Viva prep:** [VIVA.md](./VIVA.md)
+
 </div>
 
 ---
